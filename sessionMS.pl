@@ -36,7 +36,7 @@ my $counter          = 0;          #Session Counter
 my $TS_dif           = 10 * 60;    #Session window (10 minutes)
 my $currenthashValue = 0;          #store temporary hash value
 my $noofiterations   = 10;         #set number of Apriori Levels
-my $windowsize       = 1000;       #information on number of sessions
+my $windowsize       = 100000;     #information on number of sessions
 my $difference       = 0;          #difference between current and $windowsize
 
 ####################################################################
@@ -56,12 +56,17 @@ sub parseLog() {
 		if ( $log_line =~ /GET (.+?) 200/ ) {
 			$temp = $&;
 			$temp =~ s/GET \/| (.+?) (.+?){3}//g;
+			$temp = trim($temp);
+			if ( $temp eq "" ) {
+				next;    #storing only statements which have an address
+			}
+
 			$resultarray[$i][2] = $temp;
 			$linecount++;
 		}
 		else {
 			$linecount--;
-			next;    #storing only the GET statements
+			next;        #storing only the GET statements
 		}
 
 		#Getting IP address
@@ -310,48 +315,55 @@ sub formatLevels() {
 
 	#taking input of sessions from file and removing lines out of session range
 	open( WRITER, '<', $tempfile ) or die "Could not open $tempfile\n";
+	$i=0;
 	while (<WRITER>) {
 		chomp;
 		$inputarray[ $i++ ] = $_;
 	}
 	close WRITER;
 	$difference = ( scalar @inputarray ) - $windowsize;
-	splice @inputarray, 0, $difference;
+	print "Number of Sessions Exceeding Window Size : $difference\n";
 
-	#removing useless elements from hashlevels higher than 1
+	if ( $difference > 0 ) {
+		#removing useless elements from hashlevels higher than 1
+		splice @inputarray, 0, $difference;
+		for ( $l = 1 ; $l <= $noofiterations ; $l++ ) {
+			$hashfilename = 'hashlevel' . $l;
+			if ( -e $hashfilename ) {
+				%counts = %{ retrieve($hashfilename) };
 
-	for ( $l = 1 ; $l <= $noofiterations ; $l++ ) {
-		$hashfilename = 'hashlevel' . $l;
-		if ( -e $hashfilename ) {
-			%counts = %{ retrieve($hashfilename) };
-
-			#removing all the lines which no longer exist in the session window
-			foreach ( keys %counts ) {
-				for ( $i = scalar @{ $counts{$_} } - 1 ; $i >= 0 ; $i-- ) {
-					if ( ${ $counts{$_} }[$i] < $difference ) {
-						splice @{ $counts{$_} }, $i, 1;
-					}
-					else {
-						${ $counts{$_} }[$i] =
-						  ${ $counts{$_} }[$i] - $difference;
+			 #removing all the lines which no longer exist in the session window
+				foreach ( keys %counts ) {
+					for ( $i = scalar @{ $counts{$_} } - 1 ; $i >= 0 ; $i-- ) {
+						if ( ${ $counts{$_} }[$i] < $difference ) {
+							splice @{ $counts{$_} }, $i, 1;
+						}
+						else {
+							${ $counts{$_} }[$i] =
+							  ${ $counts{$_} }[$i] - $difference;
+						}
 					}
 				}
-			}
 
-			#removing hash keys with null values;
-			foreach ( keys %counts ) {
-				if ( scalar @{ $counts{$_} } <= 0 ) {
-					delete $counts{$_};
+				#removing hash keys with null values;
+				foreach ( keys %counts ) {
+					if ( scalar @{ $counts{$_} } <= 0 ) {
+						delete $counts{$_};
+					}
 				}
-			}
 
-			#Storing Hash Value table for the current level
-			store \%counts, $hashfilename;
-			%counts = ();
+				#Storing Hash Value table for the current level
+				store \%counts, $hashfilename;
+				%counts = ();
+			}
+			else {
+				print $hashfilename, " does not exist\n";
+			}
 		}
-		else {
-			print $hashfilename, " does not exist\n";
-		}
+
+	}
+	else {
+		print "Inside window size so not eliminating anything\n";
 	}
 
 }    #sub formatLevels ends here
@@ -373,12 +385,12 @@ sub apriori {
 	  ();    #consists of individual elements of apriori row for comparing
 	my @countvalues =
 	  ();    # contains values which are used for elimination of elements
-	my @res        = ();       #for results of permutation of subsets
-	my $temp       = '';       #temp string for string operations
-	my $iptemp     = '';       #temp string for string operations
+	my @res        = ();      #for results of permutation of subsets
+	my $temp       = '';      #temp string for string operations
+	my $iptemp     = '';      #temp string for string operations
 	my $support    = 0.01;    #minimum support
-	my $nooflines  = 0;        #total number of input lines
-	my $currentval = 0;        #value of current element
+	my $nooflines  = 0;       #total number of input lines
+	my $currentval = 0;       #value of current element
 	my $distinctelementstring = ''; #string of distinct elements for permutation
 	my $nameofArray           = ''; #for element arrays
 	my $pattern               = ''; #for patterns in removal
@@ -678,6 +690,7 @@ print "Create Session ended at : $dif seconds", "\n";
 printToFile();      #sub for printing the sessions
 $dif = -( $start - time );
 print "Print to file ended at : $dif seconds", "\n";
+
 createList();       #sub for creating sessions based on IP address and Timestamp
 $dif = -( $start - time );
 print "Create List ended at : $dif seconds", "\n";
