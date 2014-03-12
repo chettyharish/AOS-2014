@@ -1,16 +1,14 @@
+#Version with changed delimiter 'A' and array based counting
 #use strict;
-use warnings;                     #for displaying warnings
-use Date::Parse;                  #for converting date format
-use String::Util 'trim';          #for removing trailing and leading spaces
-use Data::PowerSet 'powerset';    #for generating subsets of pattern
-use Algorithm::Combinatorics qw(combinations); #for generating combinations
-use Storable;                                  #for storing hash values to files
+use warnings;
+use Date::Parse;
+use String::Util 'trim';
+use Algorithm::Combinatorics qw(combinations);
 
 ####################################################################
 #initializing all required variables
-my $inputlog      = "E:\\College\\Projects\\ZLearnPerl\\Log.txt";
+my $inputlog      = "E:\\College\\Projects\\ZLearnPerl\\Small\\log_000";
 my $tempfile      = "temp.txt";
-my $infofile      = "info.txt";
 my $processeddata = "data.csv";
 my $outputfile    = "output.txt";
 my @resultarray      = ();    #for storing the values
@@ -18,26 +16,25 @@ my @auxref           = ();    #for storing the temporary values
 my %frequency        = ();    #for calculating the frequency for Apriori
 my %hashtable        = ();    #for hashing in Apriori
 my %reversehashtable = ();    #for unhashing in Apriori
-my @inputarray       = ();    #array for Apriori Algorithm
-
 my ( $i, $j, $k ) = 0;        #for iteration
 my $n         = 0;            #for number of elements in the $inputlog
 my $hashValue = 0;            #hash values for %hashtable as a counter
 my ( $hi, $lo ) = 0;          #for mergeSort bounds
+
+my $find = ".";               #for removing . character from IP address
+$find = quotemeta $find;      #for removing quotemeta in $find
+my $replace          = "";         #replace . with nothing
+my $wrongline        = 0;          #for counting wrong input lines
 my $temp             = '';         #for url inputs
-my $deletetemp       = '';         #holder for deleting entries in hash tables
 my $ip_value         = 0;          #for IP address without . character
 my $stored_IP        = 0;          #for sessionizing using IP
 my $stored_TS        = 0;          #for sessionizing using Timestamp
 my $sessionline      = '';         #for concatenating entries of a session
-my $hashfilename     = '';         #for hash file names
 my $oldsessionval    = 0;          #for creating rows for Apriori
 my $counter          = 0;          #Session Counter
 my $TS_dif           = 10 * 60;    #Session window (10 minutes)
 my $currenthashValue = 0;          #store temporary hash value
 my $noofiterations   = 10;         #set number of Apriori Levels
-my $windowsize       = 1000;       #information on number of sessions
-my $difference       = 0;          #difference between current and $windowsize
 
 ####################################################################
 
@@ -50,16 +47,22 @@ sub parseLog() {
 
 	#Parsing input into a table
 	while ( my $log_line = <INPUTFILE> ) {
+		if ( $linecount == 10000 ) { last; }
 		chomp $log_line;
 
 		#Getting File Path and protocol only for GET
-		if ( $log_line =~ /GET (.+?) 200/ ) {
+		if ( $log_line =~ /GET (.+?) / ) {
 			$temp = $&;
-			$temp =~ s/GET \/| (.+?) (.+?){3}//g;
+			$temp =~ s/GET \///g;
+			$temp = trim($temp);
 			$resultarray[$i][2] = $temp;
 			$linecount++;
 		}
 		else {
+			$resultarray[$i][0] = undef;
+			$resultarray[$i][1] = undef;
+			$resultarray[$i][2] = undef;
+			$wrongline++;
 			$linecount--;
 			next;    #storing only the GET statements
 		}
@@ -67,11 +70,15 @@ sub parseLog() {
 		#Getting IP address
 		if ( $log_line =~ /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/ ) {
 			$ip_value = $&;
-			$ip_value =~ s/\.//g;
+			$ip_value =~ s/$find/$replace/g;
 			$resultarray[$i][0] = $ip_value;
 		}
 		else {
+			$resultarray[$i][0] = undef;
+			$resultarray[$i][1] = undef;
+			$resultarray[$i][2] = undef;
 			$linecount--;
+			$wrongline++;
 			next;
 		}
 
@@ -80,22 +87,20 @@ sub parseLog() {
 			$resultarray[$i][1] = str2time($&);
 		}
 		else {
+			$resultarray[$i][0] = undef;
+			$resultarray[$i][1] = undef;
+			$resultarray[$i][2] = undef;
 			$linecount--;
+			$wrongline++;
 			next;
 		}
+
 		$i++
 		  ; #incrementing to next element location only if all the data was successfull retrieved
 	}
-	$n = scalar @resultarray;
-	if (   !defined $resultarray[ $n - 1 ][0]
-		|| !defined $resultarray[ $n - 1 ][1]
-		|| !defined $resultarray[ $n - 1 ][2] )
-	{
-		print "Last element undef\n";
-		splice @resultarray, $n - 1, 1;
-	}
-	$n = scalar @resultarray;    #number of elements in resultarray
+	$n = @resultarray;    #number of elements in resultarray
 	print "Number of lines in the log : $n\n";
+	print "Number of wrong lines skipped : $wrongline\n";
 }    # sub parseLog ends
 ####################################################################
 
@@ -209,7 +214,7 @@ sub printToFile {
 	#print output of phase 1 in data.csv file
 	for ( $i = 0 ; $i < $n ; $i++ ) {
 		print DATAFILE
-"$resultarray[$i][0],$resultarray[$i][1],$resultarray[$i][2],$resultarray[$i][3]\n";
+		  "$resultarray[$i][0],$resultarray[$i][1],$resultarray[$i][2]\n";
 	}
 
 }    #sub printToFile ends
@@ -219,38 +224,25 @@ sub printToFile {
 #sub createList starts here
 sub createList() {
 
-	$oldsessionval = -1;    #to make zero also an session
-	$counter       = 0;     #Used to eliminate sessions with one entry
-	     #appending to the temp file storing the previous information.
-	open( TEMPWRITER, '>>', $tempfile ) or die "Could not open $tempfile\n";
+	$oldsessionval = 0;
+	$counter       = 0;
+	open( TEMPWRITER, '>', $tempfile ) or die "Could not open $tempfile\n";
 
-	$hashfilename = 'hashtable';
-	if ( -e $hashfilename ) {
+	#inserting the first element from tempfile
+	$hashtable{ $resultarray[0][2] } = $hashValue;
+	$reversehashtable{$hashValue} = $resultarray[$i][2];
+	$hashValue++;
+	$sessionline .= " ";
+	$sessionline .= $hashValue - 1;
+	$counter++;
 
-		#Information from previous Apriories
-		%hashtable = %{ retrieve($hashfilename) };
-	}
+	for ( $i = 1 ; $i < $n ; $i++ ) {
 
-	$hashfilename = 'reversehashtable';
-	if ( -e $hashfilename ) {
-
-		#Information from previous Apriories
-		%reversehashtable = %{ retrieve($hashfilename) };
-	}
-
-	if ( -e $infofile ) {
-		open( SAVEDINFO, '<', $infofile ) or die "Could not open $infofile\n";
-		$hashValue = <SAVEDINFO>;
-		close SAVEDINFO;
-	}
-
-	print "Starting Hash Value is " . $hashValue . "\n";
-
-	for ( $i = 0 ; $i < $n ; $i++ ) {
 		if ( $oldsessionval < $resultarray[$i][3] ) {
 
 			#new session so terminating the line
 			$sessionline .= " \n";
+
 			if ( $counter > 1 ) {
 
 				#only writing if there are more than one entry in a session
@@ -266,6 +258,7 @@ sub createList() {
 		$resultarray[$i][2] = trim( $resultarray[$i][2] );
 
 		if ( exists $hashtable{ $resultarray[$i][2] } ) {
+
 			$currenthashValue = $hashtable{ $resultarray[$i][2] };
 			$sessionline .= $currenthashValue;
 			$counter++;
@@ -286,18 +279,7 @@ sub createList() {
 
 	}
 
-	#Storing Straight Hash Value table for the current level
-	$hashfilename = 'hashtable';
-	store \%hashtable, $hashfilename;
-
-	#Storing Reverse Hash Value table for the current level
-	$hashfilename = 'reversehashtable';
-	store \%reversehashtable, $hashfilename;
-
 	# emptying the resultarray releasing memory
-	open( SAVEDINFO, '>', $infofile ) or die "Could not open $infofile\n";
-	print SAVEDINFO $hashValue;
-	close SAVEDINFO;
 	@resultarray = ();
 	close TEMPWRITER;
 
@@ -305,62 +287,10 @@ sub createList() {
 ####################################################################
 
 ####################################################################
-#sub formatLevels starts here
-sub formatLevels() {
-
-	#taking input of sessions from file and removing lines out of session range
-	open( WRITER, '<', $tempfile ) or die "Could not open $tempfile\n";
-	while (<WRITER>) {
-		chomp;
-		$inputarray[ $i++ ] = $_;
-	}
-	close WRITER;
-	$difference = ( scalar @inputarray ) - $windowsize;
-	splice @inputarray, 0, $difference;
-
-	#removing useless elements from hashlevels higher than 1
-
-	for ( $l = 1 ; $l <= $noofiterations ; $l++ ) {
-		$hashfilename = 'hashlevel' . $l;
-		if ( -e $hashfilename ) {
-			%counts = %{ retrieve($hashfilename) };
-
-			#removing all the lines which no longer exist in the session window
-			foreach ( keys %counts ) {
-				for ( $i = scalar @{ $counts{$_} } - 1 ; $i >= 0 ; $i-- ) {
-					if ( ${ $counts{$_} }[$i] < $difference ) {
-						splice @{ $counts{$_} }, $i, 1;
-					}
-					else {
-						${ $counts{$_} }[$i] =
-						  ${ $counts{$_} }[$i] - $difference;
-					}
-				}
-			}
-
-			#removing hash keys with null values;
-			foreach ( keys %counts ) {
-				if ( scalar @{ $counts{$_} } <= 0 ) {
-					delete $counts{$_};
-				}
-			}
-
-			#Storing Hash Value table for the current level
-			store \%counts, $hashfilename;
-			%counts = ();
-		}
-		else {
-			print $hashfilename, " does not exist\n";
-		}
-	}
-
-}    #sub formatLevels ends here
-####################################################################
-
-####################################################################
 #sub apriori starts here
 sub apriori {
 
+	my @inputarray = ();
 	my ( $i, $j, $k, $l, $p ) = 0;
 	my $flag   = 1;    #for testing wheter all subparts matched
 	my %counts = ();   #hash table storing the elements and their distinct count
@@ -373,29 +303,29 @@ sub apriori {
 	  ();    #consists of individual elements of apriori row for comparing
 	my @countvalues =
 	  ();    # contains values which are used for elimination of elements
-	my @res        = ();       #for results of permutation of subsets
-	my $temp       = '';       #temp string for string operations
-	my $iptemp     = '';       #temp string for string operations
-	my $support    = 0.01;    #minimum support
-	my $nooflines  = 0;        #total number of input lines
-	my $currentval = 0;        #value of current element
+	my $globstring = '';      #for generating all permutations at a level
+	my $temp       = '';      #temp string for string operations
+	my $iptemp     = '';      #temp string for string operations
+	my $support    = 0.05;    #minimum support
+	my $nooflines  = 0;       #total number of input lines
+	my $currentval = 0;       #value of current element
 	my $distinctelementstring = ''; #string of distinct elements for permutation
 	my $nameofArray           = ''; #for element arrays
-	my $pattern               = ''; #for patterns in removal
-
+	open( WRITER,  '<', $tempfile )   or die "Could not open $tempfile\n";
 	open( OWRITER, '>', $outputfile ) or die "Could not open $outputfile\n";
+
+	my ( $no, $yes ) = 0;
+
+	#taking input
+	while (<WRITER>) {
+		chomp;
+		$inputarray[ $i++ ] = $_;
+	}
+	close WRITER;
 
 	print "Number of sessions created : ", scalar @inputarray, "\n";
 
-	#Loading hash values from previous files
-	$hashfilename = 'hashlevel1';
-	if ( -e $hashfilename ) {
-
-		#Information from previous Apriories
-		%counts = %{ retrieve($hashfilename) };
-	}
-
-	#Single element count by inserting the line number in the array
+	#Single element count
 	for ( $i = 0 ; $i < scalar @inputarray ; $i++ ) {
 		@tempiparray = split( " ", $inputarray[$i] );
 		foreach (@tempiparray) {
@@ -421,11 +351,15 @@ sub apriori {
 		$currentval = scalar @{ $counts{$_} };
 		my $currentSupport = $currentval / $nooflines;
 		if ( $currentSupport >= $support ) {
-			print OWRITER "$reversehashtable{$_} => ",
-			  scalar @{ $counts{$_} },
+			print OWRITER "$reversehashtable{$_} => ", scalar @{ $counts{$_} },
 			  "	    HAS SUPPORT  ",
 			  $currentSupport,
 			  "\n";
+
+			#	print OWRITER "$_ => $counts{$_}	    HAS SUPPORT  ",
+			#	  $currentSupport,
+			#	  "\n";
+
 		}
 		$currentSupport = 0;
 		$currentval     = 0;
@@ -454,19 +388,12 @@ sub apriori {
 
 	$distinctelementstring = [@distinctelements];
 
-	#Storing Hash Value table for the current level
-	$hashfilename = 'hashlevel1';
-	store \%counts, $hashfilename;
-
 	#Single element phase complete
 	%counts      = ();
 	@tempiparray = ();
 	$currentval  = 0;
 
 	for ( $i = 2 ; $i <= $noofiterations ; $i++ ) {
-		print "LEVEL $i STARTS\n";
-
-		#generating new patterns depending on old ones
 
 		if ( scalar @distinctelements < $i ) {
 			print $i,
@@ -474,47 +401,9 @@ sub apriori {
 			last;
 		}
 
-		$k = 0;
-		if ( $i > 2 ) {
-			my $iter = combinations( $distinctelementstring, $i );
-			while ( my $c = $iter->next ) {
-				@rowelements = split( "A", "@$c" );
-				foreach (@rowelements) {
-					$_ = trim($_) . "A";
-				}
-
-				#As a patern of level $n will have subsets of size $n-1
-				my $powerset =
-				  powerset( { min => $i - 1, max => $i - 1 }, @rowelements );
-				for my $p (@$powerset) {
-					$pattern = trim("@$p");
-					if ( exists $counts{$pattern} ) {
-						$currentval = scalar @{ $counts{$pattern} };
-						my $currentSupport = $currentval / $nooflines;
-						if ( $currentSupport >= $support ) {
-							$apriorirow[ $k++ ] = "@$c";
-							last;
-						}
-					}
-				}
-			}
-		}
-		else {
-			my $iter = combinations( $distinctelementstring, $i );
-			while ( my $c = $iter->next ) {
-				$apriorirow[ $k++ ] = "@$c";
-			}
-		}
-
-		print "Number of Combinations is " . scalar @apriorirow . "\n";
-		%counts = ();
-
-		#Loading hash values from previous files
-		$hashfilename = 'hashlevel' . $i;
-		if ( -e $hashfilename ) {
-
-			#Information from previous Apriories
-			%counts = %{ retrieve($hashfilename) };
+		my $iter = combinations( $distinctelementstring, $i );
+		while ( my $c = $iter->next ) {
+			$apriorirow[ $k++ ] = "@$c";
 		}
 
 		for ( $l = 0 ; $l < scalar @apriorirow ; $l++ ) {
@@ -547,6 +436,7 @@ sub apriori {
 				$iptemp = '';
 
 				if ( $flag == 1 ) {
+					$yes++;
 					if ( exists $counts{ $apriorirow[$l] } ) {
 						push( $counts{ $apriorirow[$l] }, $j );
 					}
@@ -581,9 +471,12 @@ sub apriori {
 					print OWRITER "$reversehashtable{$_}  ||  ";
 				}
 
-				print OWRITER "=> ", scalar @{ $counts{$_} },
-				  "	    HAS SUPPORT  ",
+				print OWRITER "=> ",scalar @{ $counts{$_} },"	    HAS SUPPORT  ",
 				  $currentSupport, "\n";
+
+				#print OWRITER "$_ => $counts{$_}	    HAS SUPPORT  ",
+				#  $currentSupport,
+				# "\n";
 			}
 		}
 
@@ -593,8 +486,7 @@ sub apriori {
 
 		@distinctelements = keys %newcounts;
 
-		print "Number of Distinct Elements : ",
-		  scalar @distinctelements,
+		print "Number of Distinct Elements : ", scalar @distinctelements,
 		  "\n", "Distinct Elements :   @distinctelements \n";
 
 		foreach (@distinctelements) {
@@ -603,57 +495,17 @@ sub apriori {
 
 		$distinctelementstring = [@distinctelements];
 
-		#Storing Hash Value table for the current level
-		$hashfilename = 'hashlevel' . $i;
-		store \%counts, $hashfilename;
-
 		# element phase complete
 		%newcounts  = ();
+		%counts     = ();
 		@apriorirow = ();
+		$globstring = '';
 	}    # for of Levels end
 
 	close OWRITER;
+	print "Negative Matches: $no 			Positive Matches: $yes \n";
 }    #sub apriori ends here
-####################################################################
 
-####################################################################
-#sub formatHash starts here
-sub formatHash {
-
-	$hashfilename = 'hashtable';
-	if ( -e $hashfilename ) {
-
-		#Information from current Apriori
-		%hashtable = %{ retrieve($hashfilename) };
-	}
-
-	$hashfilename = 'reversehashtable';
-
-	#Information from current Apriori
-	%reversehashtable = %{ retrieve($hashfilename) };
-
-	$hashfilename = 'hashlevel1';
-	%counts       = %{ retrieve($hashfilename) };
-
-	foreach ( keys %counts ) {
-		if ( scalar @{ $counts{$_} } <= 0 ) {
-
-			$deletetemp = $reversehashtable{$_};
-			delete $hashtable{$deletetemp};
-			delete $reversehashtable{$_};
-			delete $counts{$_};
-		}
-	}
-
-	#Storing Straight Hash Value table for the current level
-	$hashfilename = 'hashtable';
-	store \%hashtable, $hashfilename;
-
-	#Storing Reverse Hash Value table for the current level
-	$hashfilename = 'reversehashtable';
-	store \%reversehashtable, $hashfilename;
-
-}    #sub formatHash ends here
 ####################################################################
 
 ####################################################################
@@ -678,21 +530,16 @@ print "Create Session ended at : $dif seconds", "\n";
 printToFile();      #sub for printing the sessions
 $dif = -( $start - time );
 print "Print to file ended at : $dif seconds", "\n";
+
 createList();       #sub for creating sessions based on IP address and Timestamp
 $dif = -( $start - time );
 print "Create List ended at : $dif seconds", "\n";
 
-formatLevels();     #sub for removing out of window elements from level tables
-$dif = -( $start - time );
-print "Format Data ended at : $dif seconds", "\n";
-
 apriori();          #sub for running apriori on the list
+
 print "Number of lines processed is $n \n";
+
 $dif = -( $start - time );
 print "Apriori ended at : $dif seconds", "\n";
-
-formatHash();       #sub for removing zeroes elements from hash tables
-$dif = -( $start - time );
-print "Format Data ended at : $dif seconds", "\n";
 
 ####################################################################
