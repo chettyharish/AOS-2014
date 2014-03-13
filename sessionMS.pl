@@ -8,22 +8,22 @@ use Storable;                                  #for storing hash values to files
 
 ####################################################################
 #initializing all required variables
-my $inputlog      = "E:\\College\\Projects\\ZLearnPerl\\Log.txt";
-my $tempfile      = "temp.txt";
-my $infofile      = "info.txt";
-my $processeddata = "data.csv";
-my $outputfile    = "output.txt";
-my @resultarray      = ();    #for storing the values
-my @auxref           = ();    #for storing the temporary values
-my %frequency        = ();    #for calculating the frequency for Apriori
-my %hashtable        = ();    #for hashing in Apriori
-my %reversehashtable = ();    #for unhashing in Apriori
-my @inputarray       = ();    #array for Apriori Algorithm
 
-my ( $i, $j, $k ) = 0;        #for iteration
-my $n         = 0;            #for number of elements in the $inputlog
-my $hashValue = 0;            #hash values for %hashtable as a counter
-my ( $hi, $lo ) = 0;          #for mergeSort bounds
+my $tempfile         = "temp.txt";
+my $infofile         = "info.txt";
+my $processeddata    = "data.csv";
+my $outputfile       = "output.txt";
+my @resultarray      = ();            #for storing the values
+my @auxref           = ();            #for storing the temporary values
+my %frequency        = ();            #for calculating the frequency for Apriori
+my %hashtable        = ();            #for hashing in Apriori
+my %reversehashtable = ();            #for unhashing in Apriori
+my @inputarray       = ();            #array for Apriori Algorithm
+
+my ( $i, $j, $k ) = 0;                #for iteration
+my $n         = 0;                    #for number of elements in the $inputlog
+my $hashValue = 0;                    #hash values for %hashtable as a counter
+my ( $hi, $lo ) = 0;                  #for mergeSort bounds
 my $temp             = '';         #for url inputs
 my $deletetemp       = '';         #holder for deleting entries in hash tables
 my $ip_value         = 0;          #for IP address without . character
@@ -36,14 +36,16 @@ my $counter          = 0;          #Session Counter
 my $TS_dif           = 10 * 60;    #Session window (10 minutes)
 my $currenthashValue = 0;          #store temporary hash value
 my $noofiterations   = 10;         #set number of Apriori Levels
-my $windowsize       = 100000;     #information on number of sessions
+my $windowsize       = 1000;       #information on number of sessions
 my $difference       = 0;          #difference between current and $windowsize
 
 ####################################################################
 
 ####################################################################
 #sub parseLog starts here
-sub parseLog() {
+sub parseLog {
+
+	my $inputlog  = $_[0];
 	my $linecount = 0;
 	open( INPUTFILE, '<', $inputlog )
 	  or die "Could not open $inputlog\n";
@@ -315,7 +317,7 @@ sub formatLevels() {
 
 	#taking input of sessions from file and removing lines out of session range
 	open( WRITER, '<', $tempfile ) or die "Could not open $tempfile\n";
-	$i=0;
+	$i = 0;
 	while (<WRITER>) {
 		chomp;
 		$inputarray[ $i++ ] = $_;
@@ -325,6 +327,7 @@ sub formatLevels() {
 	print "Number of Sessions Exceeding Window Size : $difference\n";
 
 	if ( $difference > 0 ) {
+
 		#removing useless elements from hashlevels higher than 1
 		splice @inputarray, 0, $difference;
 		for ( $l = 1 ; $l <= $noofiterations ; $l++ ) {
@@ -670,42 +673,46 @@ sub formatHash {
 
 ####################################################################
 # Program calls here
+sub main {
+	my $start = time;
+	my $dif   = 0;
 
-my $start = time;
-my $dif   = 0;
+	parseLog( $_[0] );    #sub for fetching data from the log
+	$dif = -( $start - time );
+	print "Parse Log ended at : $dif seconds", "\n";
 
-parseLog();    #sub for fetching data from the log
-$dif = -( $start - time );
-print "Parse Log ended at : $dif seconds", "\n";
+	mergeSort( \@resultarray, \@auxref, 0, $n - 1 )
+	  ;                   #sub for sorting data on the basis of IP address
+	$dif = -( $start - time );
+	print "Merge Sort ended at : $dif seconds", "\n";
 
-mergeSort( \@resultarray, \@auxref, 0, $n - 1 )
-  ;            #sub for sorting data on the basis of IP address
-$dif = -( $start - time );
-print "Merge Sort ended at : $dif seconds", "\n";
+	createSession()
+	  ;    #sub for creating sessions based on IP address and Timestamp
+	$dif = -( $start - time );
+	print "Create Session ended at : $dif seconds", "\n";
 
-createSession();    #sub for creating sessions based on IP address and Timestamp
-$dif = -( $start - time );
-print "Create Session ended at : $dif seconds", "\n";
+	printToFile();    #sub for printing the sessions
+	$dif = -( $start - time );
+	print "Print to file ended at : $dif seconds", "\n";
 
-printToFile();      #sub for printing the sessions
-$dif = -( $start - time );
-print "Print to file ended at : $dif seconds", "\n";
+	createList();   #sub for creating sessions based on IP address and Timestamp
+	$dif = -( $start - time );
+	print "Create List ended at : $dif seconds", "\n";
 
-createList();       #sub for creating sessions based on IP address and Timestamp
-$dif = -( $start - time );
-print "Create List ended at : $dif seconds", "\n";
+	formatLevels();   #sub for removing out of window elements from level tables
+	$dif = -( $start - time );
+	print "Format Data ended at : $dif seconds", "\n";
 
-formatLevels();     #sub for removing out of window elements from level tables
-$dif = -( $start - time );
-print "Format Data ended at : $dif seconds", "\n";
+	apriori();        #sub for running apriori on the list
+	print "Number of lines processed is $n \n";
+	$dif = -( $start - time );
+	print "Apriori ended at : $dif seconds", "\n";
 
-apriori();          #sub for running apriori on the list
-print "Number of lines processed is $n \n";
-$dif = -( $start - time );
-print "Apriori ended at : $dif seconds", "\n";
-
-formatHash();       #sub for removing zeroes elements from hash tables
-$dif = -( $start - time );
-print "Format Data ended at : $dif seconds", "\n";
-
+	formatHash();     #sub for removing zeroes elements from hash tables
+	$dif = -( $start - time );
+	print "Format Data ended at : $dif seconds", "\n";
+}    #sub main ends here
 ####################################################################
+
+main($ARGV[0]);
+
