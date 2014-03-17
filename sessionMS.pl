@@ -175,7 +175,7 @@ sub merge {
 
 ####################################################################
 #sub createSession starts here
-sub createSession() {
+sub createSession {
 
 	#creating sessions here
 	$stored_IP         = $resultarray[0][0];
@@ -224,7 +224,7 @@ sub printToFile {
 
 ####################################################################
 #sub createList starts here
-sub createList() {
+sub createList {
 
 	$oldsessionval = -1;    #to make zero also an session
 	$counter       = 0;     #Used to eliminate sessions with one entry
@@ -313,7 +313,8 @@ sub createList() {
 
 ####################################################################
 #sub formatLevels starts here
-sub formatLevels() {
+sub formatLevels {
+	$windowsize = $_[0];
 
 	#taking input of sessions from file and removing lines out of session range
 	open( WRITER, '<', $tempfile ) or die "Could not open $tempfile\n";
@@ -375,7 +376,6 @@ sub formatLevels() {
 ####################################################################
 #sub apriori starts here
 sub apriori {
-
 	my ( $i, $j, $k, $l, $p ) = 0;
 	my $flag   = 1;    #for testing wheter all subparts matched
 	my %counts = ();   #hash table storing the elements and their distinct count
@@ -388,12 +388,12 @@ sub apriori {
 	  ();    #consists of individual elements of apriori row for comparing
 	my @countvalues =
 	  ();    # contains values which are used for elimination of elements
-	my @res        = ();      #for results of permutation of subsets
-	my $temp       = '';      #temp string for string operations
-	my $iptemp     = '';      #temp string for string operations
-	my $support    = 0.01;    #minimum support
-	my $nooflines  = 0;       #total number of input lines
-	my $currentval = 0;       #value of current element
+	my @res        = ();       #for results of permutation of subsets
+	my $temp       = '';       #temp string for string operations
+	my $iptemp     = '';       #temp string for string operations
+	my $support    = $_[0];    #minimum support
+	my $nooflines  = 0;        #total number of input lines
+	my $currentval = 0;        #value of current element
 	my $distinctelementstring = ''; #string of distinct elements for permutation
 	my $nameofArray           = ''; #for element arrays
 	my $pattern               = ''; #for patterns in removal
@@ -699,20 +699,20 @@ sub main {
 	$dif = -( $start - time );
 	print "Create List ended at : $dif seconds", "\n";
 
-	formatLevels();   #sub for removing out of window elements from level tables
+	formatLevels ( $_[1] )
+	  ;             #sub for removing out of window elements from level tables
 	$dif = -( $start - time );
 	print "Format Data ended at : $dif seconds", "\n";
 
-	apriori();        #sub for running apriori on the list
+	apriori( $_[2] );    #sub for running apriori on the list
 	print "Number of lines processed is $n \n";
 	$dif = -( $start - time );
 	print "Apriori ended at : $dif seconds", "\n";
-
-	formatHash();     #sub for removing zeroes elements from hash tables
+	formatHash();        #sub for removing zeroes elements from hash tables
 	$dif = -( $start - time );
 	print "Format Data ended at : $dif seconds", "\n";
 }    #sub main ends here
 ####################################################################
 
-main($ARGV[0]);
+main( $ARGV[0], $ARGV[1], $ARGV[2] );
 
