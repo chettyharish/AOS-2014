@@ -324,13 +324,22 @@ sub formatLevels {
 		$inputarray[ $i++ ] = $_;
 	}
 	close WRITER;
+	print "Original number of sessions in file :", scalar @inputarray,"\n";
 	$difference = ( scalar @inputarray ) - $windowsize;
 	print "Number of Sessions Exceeding Window Size : $difference\n";
 
 	if ( $difference > 0 ) {
 
-		#removing useless elements from hashlevels higher than 1
+		#removing old lines from the file
 		splice @inputarray, 0, $difference;
+		open( WRITER, '>', $tempfile ) or die "Could not open $tempfile\n";
+		foreach (@inputarray){
+			print WRITER "$_\n";
+		}
+		close WRITER;
+
+		#removing useless elements from hashlevels higher than 1
+
 		for ( $l = 1 ; $l <= $noofiterations ; $l++ ) {
 			$hashfilename = 'hashlevel' . $l;
 			if ( -e $hashfilename ) {
@@ -359,9 +368,6 @@ sub formatLevels {
 				#Storing Hash Value table for the current level
 				store \%counts, $hashfilename;
 				%counts = ();
-			}
-			else {
-				print $hashfilename, " does not exist\n";
 			}
 		}
 
@@ -699,7 +705,7 @@ sub main {
 	$dif = -( $start - time );
 	print "Create List ended at : $dif seconds", "\n";
 
-	formatLevels ( $_[1] )
+	formatLevels( $_[1] )
 	  ;             #sub for removing out of window elements from level tables
 	$dif = -( $start - time );
 	print "Format Data ended at : $dif seconds", "\n";
