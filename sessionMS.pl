@@ -35,8 +35,7 @@ my $oldsessionval    = 0;          #for creating rows for Apriori
 my $counter          = 0;          #Session Counter
 my $TS_dif           = 10 * 60;    #Session window (10 minutes)
 my $currenthashValue = 0;          #store temporary hash value
-my $noofiterations   = 10;         #set number of Apriori Levels
-my $windowsize       = 1000;       #information on number of sessions
+my $windowsize       = 0;          #information on number of sessions
 my $difference       = 0;          #difference between current and $windowsize
 
 ####################################################################
@@ -324,7 +323,7 @@ sub formatLevels {
 		$inputarray[ $i++ ] = $_;
 	}
 	close WRITER;
-	print "Original number of sessions in file :", scalar @inputarray,"\n";
+	print "Original number of sessions in file :", scalar @inputarray, "\n";
 	$difference = ( scalar @inputarray ) - $windowsize;
 	print "Number of Sessions Exceeding Window Size : $difference\n";
 
@@ -333,14 +332,14 @@ sub formatLevels {
 		#removing old lines from the file
 		splice @inputarray, 0, $difference;
 		open( WRITER, '>', $tempfile ) or die "Could not open $tempfile\n";
-		foreach (@inputarray){
+		foreach (@inputarray) {
 			print WRITER "$_\n";
 		}
 		close WRITER;
 
 		#removing useless elements from hashlevels higher than 1
 
-		for ( $l = 1 ; $l <= $noofiterations ; $l++ ) {
+		for ( $l = 1 ; $l <= 10 ; $l++ ) {
 			$hashfilename = 'hashlevel' . $l;
 			if ( -e $hashfilename ) {
 				%counts = %{ retrieve($hashfilename) };
@@ -394,12 +393,13 @@ sub apriori {
 	  ();    #consists of individual elements of apriori row for comparing
 	my @countvalues =
 	  ();    # contains values which are used for elimination of elements
-	my @res        = ();       #for results of permutation of subsets
-	my $temp       = '';       #temp string for string operations
-	my $iptemp     = '';       #temp string for string operations
-	my $support    = $_[0];    #minimum support
-	my $nooflines  = 0;        #total number of input lines
-	my $currentval = 0;        #value of current element
+	my @res            = ();       #for results of permutation of subsets
+	my $temp           = '';       #temp string for string operations
+	my $iptemp         = '';       #temp string for string operations
+	my $support        = $_[0];    #minimum support
+	my $nooflines      = 0;        #total number of input lines
+	my $currentval     = 0;        #value of current element
+	my $noofiterations = $_[1];    #set number of Apriori Levels
 	my $distinctelementstring = ''; #string of distinct elements for permutation
 	my $nameofArray           = ''; #for element arrays
 	my $pattern               = ''; #for patterns in removal
@@ -460,7 +460,7 @@ sub apriori {
 	foreach (@tempdistinctelements) {
 		$currentval = scalar @{ $counts{$_} };
 		my $currentSupport = $currentval / $nooflines;
-		if ( $currentSupport >= $support ) {
+		if ( $currentSupport >= $support / 2 ) {
 			$distinctelements[ $i++ ] = $_;
 		}
 	}
@@ -512,7 +512,9 @@ sub apriori {
 					if ( exists $counts{$pattern} ) {
 						$currentval = scalar @{ $counts{$pattern} };
 						my $currentSupport = $currentval / $nooflines;
-						if ( $currentSupport >= $support ) {
+						if ( $currentSupport >= $support / 2 ) {
+
+							#The divide by 2 ensures 50% leniency for old lines
 							$apriorirow[ $k++ ] = "@$c";
 							last;
 						}
@@ -684,41 +686,44 @@ sub main {
 	my $dif   = 0;
 
 	parseLog( $_[0] );    #sub for fetching data from the log
-	$dif = -( $start - time );
-	print "Parse Log ended at : $dif seconds", "\n";
+	                      #$dif = -( $start - time );
+	                      #print "Parse Log ended at : $dif seconds", "\n";
 
 	mergeSort( \@resultarray, \@auxref, 0, $n - 1 )
 	  ;                   #sub for sorting data on the basis of IP address
-	$dif = -( $start - time );
-	print "Merge Sort ended at : $dif seconds", "\n";
+	                      #$dif = -( $start - time );
+	                      #print "Merge Sort ended at : $dif seconds", "\n";
 
 	createSession()
 	  ;    #sub for creating sessions based on IP address and Timestamp
-	$dif = -( $start - time );
-	print "Create Session ended at : $dif seconds", "\n";
+	       #$dif = -( $start - time );
+	       #print "Create Session ended at : $dif seconds", "\n";
 
 	printToFile();    #sub for printing the sessions
-	$dif = -( $start - time );
-	print "Print to file ended at : $dif seconds", "\n";
+	                  #$dif = -( $start - time );
+	                  #print "Print to file ended at : $dif seconds", "\n";
 
 	createList();   #sub for creating sessions based on IP address and Timestamp
-	$dif = -( $start - time );
-	print "Create List ended at : $dif seconds", "\n";
+	                #$dif = -( $start - time );
+	                #print "Create List ended at : $dif seconds", "\n";
 
 	formatLevels( $_[1] )
 	  ;             #sub for removing out of window elements from level tables
-	$dif = -( $start - time );
-	print "Format Data ended at : $dif seconds", "\n";
+	                #$dif = -( $start - time );
+	                #print "Format Data ended at : $dif seconds", "\n";
 
-	apriori( $_[2] );    #sub for running apriori on the list
+	apriori( $_[2], $_[3] );    #sub for running apriori on the list
 	print "Number of lines processed is $n \n";
+
+	#$dif = -( $start - time );
+	#print "Apriori ended at : $dif seconds", "\n";
+	formatHash();    #sub for removing zeroes elements from hash tables
+	                 #$dif = -( $start - time );
+	                 #print "Format Data ended at : $dif seconds", "\n";
 	$dif = -( $start - time );
-	print "Apriori ended at : $dif seconds", "\n";
-	formatHash();        #sub for removing zeroes elements from hash tables
-	$dif = -( $start - time );
-	print "Format Data ended at : $dif seconds", "\n";
+	print "Iteration ended at : $dif seconds \n";
 }    #sub main ends here
 ####################################################################
 
-main( $ARGV[0], $ARGV[1], $ARGV[2] );
+main( $ARGV[0], $ARGV[1], $ARGV[2], $ARGV[3] );
 

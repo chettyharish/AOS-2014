@@ -6,36 +6,36 @@ my $i        = 0;
 my $filename = "";
 
 if ( -e "data.csv" ) {
-	`del data.csv`;
+	unlink "data.csv";
 }
 
 if ( -e "temp.txt" ) {
-	`del temp.txt`;
+	unlink "temp.txt";
 }
 
 if ( -e "output.txt" ) {
-	`del output.txt`;
+	unlink "output.txt";
 }
 
 if ( -e "info.txt" ) {
-	`del info.txt`;
+	unlink "info.txt";
 }
 
 if ( -e "line.txt" ) {
-	`del line.txt`;
+	unlink "line.txt";
 }
 
 if ( -e "hashtable" ) {
-	`del hashtable`;
+	unlink "hashtable";
 }
 
 if ( -e "reversehashtable" ) {
-	`del reversehashtable`;
+	unlink "reversehashtable";
 }
 
 for ( $i = 1 ; $i <= 10 ; $i++ ) {
 	$filename = "hashlevel" . $i;
 	if ( -e "$filename" ) {
-		`del $filename`;
+		unlink "$filename";
 	}
 }
