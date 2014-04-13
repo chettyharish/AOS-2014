@@ -13,6 +13,7 @@ my $tempfile         = "temp.txt";
 my $infofile         = "info.txt";
 my $processeddata    = "data.csv";
 my $outputfile       = "output.txt";
+my $outputfile2      = "size.txt";
 my @resultarray      = ();            #for storing the values
 my @auxref           = ();            #for storing the temporary values
 my %frequency        = ();            #for calculating the frequency for Apriori
@@ -25,6 +26,7 @@ my $n         = 0;                    #for number of elements in the $inputlog
 my $hashValue = 0;                    #hash values for %hashtable as a counter
 my ( $hi, $lo ) = 0;                  #for mergeSort bounds
 my $temp             = '';         #for url inputs
+my $formattemp       = '';         #for url formatting
 my $deletetemp       = '';         #holder for deleting entries in hash tables
 my $ip_value         = 0;          #for IP address without . character
 my $stored_IP        = 0;          #for sessionizing using IP
@@ -54,11 +56,10 @@ sub parseLog {
 		chomp $log_line;
 
 		#Getting File Path and protocol only for GET
-		if ( $log_line =~ /GET (.+?) 200/ ) {
-			$temp = $&;
-			$temp =~ s/GET \/| (.+?) (.+?){3}//g;
-			$temp = trim($temp);
-			if ( $temp eq "" ) {
+		if ( $log_line =~ /GET (.+?) 200 (.+?) / ) {
+			$temp = $formattemp = $&;
+			$formattemp =~ s/GET \/| HTTP(.+?)* 200 (.+?)*//g;
+			if ( $formattemp eq "" ) {
 				next;    #storing only statements which have an address
 			}
 
@@ -403,9 +404,11 @@ sub apriori {
 	my $distinctelementstring = ''; #string of distinct elements for permutation
 	my $nameofArray           = ''; #for element arrays
 	my $pattern               = ''; #for patterns in removal
+	my $formattemp1           = ''; #for outputting required URL
+	my $formattemp2           = ''; #for outputting required URL size
 
-	open( OWRITER, '>', $outputfile ) or die "Could not open $outputfile\n";
-
+	open( OWRITER,  '>', $outputfile )  or die "Could not open $outputfile\n";
+	open( OWRITER2, '>', $outputfile2 ) or die "Could not open $outputfile2\n";
 	print "Number of sessions created : ", scalar @inputarray, "\n";
 
 	#Loading hash values from previous files
@@ -436,24 +439,32 @@ sub apriori {
 	#writing elements to the file only above the support;
 	print OWRITER "================================================\n";
 	print OWRITER "LEVEL 1 STARTS\n";
+	print OWRITER2 "================================================\n";
+	print OWRITER2 "LEVEL 1 STARTS\n";
 
 	foreach ( keys %counts ) {
 
 		$currentval = scalar @{ $counts{$_} };
 		my $currentSupport = $currentval / $nooflines;
 		if ( $currentSupport >= $support ) {
-			print OWRITER "$reversehashtable{$_} => ",
+			$formattemp1 = $reversehashtable{$_};
+			$formattemp2 = $reversehashtable{$_};
+			$formattemp1 =~ s/GET \/| HTTP(.+?)*//g;
+			$formattemp2 =~ s/(.+?) (.+?) (.+?) (.+?) //g;
+			print OWRITER "$formattemp1 => ",
 			  scalar @{ $counts{$_} },
 			  "	    HAS SUPPORT  ",
 			  $currentSupport,
 			  "\n";
+
+			print OWRITER2 "$formattemp2 $currentSupport\n";
 		}
 		$currentSupport = 0;
 		$currentval     = 0;
 	}
 
 	print OWRITER "================================================\n";
-
+	print OWRITER2 "================================================\n";
 	my @tempdistinctelements = keys %counts;
 
 	$i = 0;
@@ -589,7 +600,8 @@ sub apriori {
 		#writing elements to the file only above the support;
 		print OWRITER "================================================\n";
 		print OWRITER "LEVEL $i STARTS\n";
-
+		print OWRITER2 "================================================\n";
+		print OWRITER2 "LEVEL $i STARTS\n";
 		foreach ( keys %counts ) {
 			$currentval = scalar @{ $counts{$_} };
 			my $currentSupport = $currentval / $nooflines;
@@ -601,16 +613,24 @@ sub apriori {
 					$_ =~ s/A//g;
 					$_ = trim($_);
 					$newcounts{$_}++;
-					print OWRITER "$reversehashtable{$_}  ||  ";
+					$formattemp1 = $reversehashtable{$_};
+					$formattemp2 = $reversehashtable{$_};
+					$formattemp1 =~ s/GET \/| HTTP(.+?)*//g;
+					$formattemp2 =~ s/(.+?) (.+?) (.+?) (.+?) //g;
+					print OWRITER "$formattemp1  ||  ";
+					print OWRITER2 "$formattemp2 ";
 				}
 
 				print OWRITER "=> ", scalar @{ $counts{$_} },
 				  "	    HAS SUPPORT  ",
 				  $currentSupport, "\n";
+
+				print OWRITER2 "$currentSupport\n";
 			}
 		}
 
 		print OWRITER "================================================\n";
+		print OWRITER2 "================================================\n";
 
 		#generating distinct elements for each iteration
 

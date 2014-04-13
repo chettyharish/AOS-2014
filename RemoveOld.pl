@@ -25,6 +25,10 @@ if ( -e "line.txt" ) {
 	unlink "line.txt";
 }
 
+if ( -e "size.txt" ) {
+	unlink "size.txt";
+}
+
 if ( -e "hashtable" ) {
 	unlink "hashtable";
 }
@@ -33,7 +37,7 @@ if ( -e "reversehashtable" ) {
 	unlink "reversehashtable";
 }
 
-for ( $i = 1 ; $i <= 10 ; $i++ ) {
+for ( $i = 1 ; $i <= 100 ; $i++ ) {
 	$filename = "hashlevel" . $i;
 	if ( -e "$filename" ) {
 		unlink "$filename";

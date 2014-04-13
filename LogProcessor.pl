@@ -7,8 +7,8 @@ my $linecounter     = 1;             # For counting number of lines
 my $prevlinecounter = 1;             # For storing previos line counter
 my $maxlines        = 10000;         #Number of lines taken from log
 my $windowsize      = 1000;          #Number of sessions to be divided into
-my $support         = 0.02;           #Apriori support level
-my $noofiterations  = 5;             #Apriori iterations
+my $support         = 0.04;          #Apriori support level
+my $noofiterations  = 100;             #Apriori iterations
 my $start           = time;          #For timing
 
 #delete old information
