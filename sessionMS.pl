@@ -226,7 +226,7 @@ sub printToFile {
 #sub createList starts here
 sub createList {
 
-	$oldsessionval = -1;    #to make zero also an session
+	$oldsessionval = -1;    #to make zero also a session
 	$counter       = 0;     #Used to eliminate sessions with one entry
 	     #appending to the temp file storing the previous information.
 	open( TEMPWRITER, '>>', $tempfile ) or die "Could not open $tempfile\n";
@@ -706,40 +706,39 @@ sub main {
 	my $dif   = 0;
 
 	parseLog( $_[0] );    #sub for fetching data from the log
-	                      #$dif = -( $start - time );
-	                      #print "Parse Log ended at : $dif seconds", "\n";
+	$dif = -( $start - time );
+	print "Parse Log ended at : $dif seconds", "\n";
 
 	mergeSort( \@resultarray, \@auxref, 0, $n - 1 )
 	  ;                   #sub for sorting data on the basis of IP address
-	                      #$dif = -( $start - time );
-	                      #print "Merge Sort ended at : $dif seconds", "\n";
+	$dif = -( $start - time );
+	print "Merge Sort ended at : $dif seconds", "\n";
 
-	createSession()
-	  ;    #sub for creating sessions based on IP address and Timestamp
-	       #$dif = -( $start - time );
-	       #print "Create Session ended at : $dif seconds", "\n";
+	createSession();      #sub for creating url dataset
+	$dif = -( $start - time );
+	print "Create Session ended at : $dif seconds", "\n";
 
-	printToFile();    #sub for printing the sessions
-	                  #$dif = -( $start - time );
-	                  #print "Print to file ended at : $dif seconds", "\n";
+	printToFile();        #sub for printing the sessions
+	$dif = -( $start - time );
+	print "Print to file ended at : $dif seconds", "\n";
 
 	createList();   #sub for creating sessions based on IP address and Timestamp
-	                #$dif = -( $start - time );
-	                #print "Create List ended at : $dif seconds", "\n";
+	$dif = -( $start - time );
+	print "Create List ended at : $dif seconds", "\n";
 
 	formatLevels( $_[1] )
 	  ;             #sub for removing out of window elements from level tables
-	                #$dif = -( $start - time );
-	                #print "Format Data ended at : $dif seconds", "\n";
+	$dif = -( $start - time );
+	print "Format Levels ended at : $dif seconds", "\n";
 
 	apriori( $_[2], $_[3] );    #sub for running apriori on the list
 	print "Number of lines processed is $n \n";
 
-	#$dif = -( $start - time );
-	#print "Apriori ended at : $dif seconds", "\n";
+	$dif = -( $start - time );
+	print "Apriori ended at : $dif seconds", "\n";
 	formatHash();    #sub for removing zeroes elements from hash tables
-	                 #$dif = -( $start - time );
-	                 #print "Format Data ended at : $dif seconds", "\n";
+	$dif = -( $start - time );
+	print "Format Data ended at : $dif seconds", "\n";
 	$dif = -( $start - time );
 	print "Iteration ended at : $dif seconds \n";
 }    #sub main ends here
